@@ -1,0 +1,356 @@
+#SSH command after starting VM
+ssh maria_dev@127.0.0.1 -p 2222
+
+#Virtual Box Root PW
+powerade
+
+#Virtual Box local PW
+maria_dev
+
+
+#==========================================================
+#Running Hadoop commands. 
+#List Files
+hadoop fs -ls 
+
+#Make a directory in hadoop
+hadoop fs --mkdir directory_name
+
+#Get files
+wget http://media.sundog-soft.com/hadoop/ml-100k/u.data
+
+#Copy from local to hadoop file system.
+hadoop fs -copyFromLocal "file_data" "directory_name/file_data"
+
+#Remove file and remove folder.
+hadoop fs -rm "directory_name/file_data"
+hadoop fs -rmdir "directory_name"
+#==========================================================
+
+
+
+#==========================================================
+#Running python script from CLI
+#Virtual Box Horton Works 2.5 Needed Installs as root
+##Enter Password and Change Password.
+##Intitial Password is hadoop
+##When prompt comes up on copy type 'y'
+##Change Directory ~
+##Install pip for Python
+su root 
+cd /etc/yum.repos.d/
+cp sandbox.repo  /tmp
+cd ~
+yum install python-pip
+
+#Install MRJobs on Hadoop 2.5 as root.
+pip install google-api-python-client==1.6.4
+pip install mrjob==0.5.11
+
+#Get u.data
+wget http://media.sundog-soft.com/hadoop/ml-100k/u.data
+#==========================================================
+
+#==========================================================
+#Running python script for hadoop locally
+python ScriptName.py data_file_name
+python ScriptName.py -r hadoop --hadoop-streaming-jar /usr/hdp/current/hadoop-mapreduce-client/hadoop-streaming.jar data_file_name
+#==========================================================
+
+
+#==========================================================
+#Submitting a script for spark on VM.
+##Sending script(s) to vm using SCP
+scp -P 2222 /Path/To/*.py user_name@localhost:/remote/Path
+
+##Executing the python script for spark
+spark-submit ScriptName.py
+
+#When using Spark2 run the following command to set the
+#version
+export SPARK_MAJOR_VERSION
+#==========================================================
+
+#==========================================================
+#From mysql to hive using sqoop 
+#In Horton Works this exported file will be placed in the apps/hive/warehouse directory. 
+#Other distributions tend to be under <user>/hive/
+sqoop import  --connect jdbc:mysql://localhost/movielens --driver com.mysql.jdbc.Driver --table users -m 1 --hive-import 
+
+#From file system to mysql db using sqoop
+sqoop export --connect jdbc:mysql://localhost/movielens -m 1 --driver com.mysql.jdbc.Driver --table exported_movies --export-dir /apps/hive/warehouse/movies --input-fields-terminated-by '\0001'
+#==========================================================
+
+
+#==========================================================
+# Hbase
+# In my virtual box I updated the Network to Port Forward on 
+# port 8000.
+# I then logged into Ambari and started my HBase service. 
+# Once the service was started I logged into my server using
+# ssh and ran the following command as root.
+/usr/hdp/current/hbase-master/bin/hbase-daemon.sh start rest -p 8000  
+# Once this was complete I was able to run my python script. HBaseRest.py
+
+# Shut down the server as root. 
+/usr/hdp/current/hbase-master/bin/hbase-daemon.sh stop rest
+#==========================================================
+
+
+#==========================================================
+#Installing Python on Horton Works VM
+#Through shell login as root. 
+#Verify all packages are up to date. 
+yum update 
+yum install scl-utils
+yum install centos-release-scl-rh
+yum install python27
+
+#Running version 2.7 of python
+scl enable python27 bash
+
+#Validate current version
+python -V
+#==========================================================
+
+
+#==========================================================
+#Install Cassandra on Horton Works VM
+cd /etc/yum.repos.d
+#Create file.
+vi datastax.repo
+#Enter values in the datastax.repo file in current folder. 
+#Then exit out of the vim editor. 
+#Install datastax Cassandra package.
+yum install dsc30
+
+#Now install python dependencies for Cassandra. 
+#Be sure the active version of Python is 2.7. 
+pip install cqlsh
+
+#Start Cassandra 
+service cassandra start 
+
+#If you need to stop Cassandra run the following.
+service cassandra stop
+
+#Current VM setup has version issues with cslqh so the 
+#following flag must be added to the cslsh call. 
+cqlsh --cqlversion="3.4.0"
+
+#Once in cqlsh use the following command to view KeySpaces.
+describe keyspaces;
+
+#To change into a keyspace run the following.
+#Where keyspace_name is the name of the keyspace you want. 
+use 'keyspace_name';
+
+#To show tables once in a keyspace use the following.
+describe tables;
+
+#To view detail about the table.
+#Where table name is the name of the table you want detailed
+#information for. 
+describe table 'table_name'
+
+
+#Running a script that connects to Cassandra.
+#As an example I will be using the script within
+#this project called CassandSpark.py
+#Connector may need to change depending on the spark version. 
+#The below connector is for spark 2.0 and scale version 2.11.
+spark-submit --packages datastax:spark-cassandra-connector:2.0.0-M2-s_2.11 CassandSpark.py
+#==========================================================
+
+
+
+#==========================================================
+#Python for mongo.
+#Make sure the proper version of Python is Running
+scl enable python27 bash
+pip install pymongo
+
+#Must be running under Spark 2.
+export SPARK_MAJOR_VERSION=2
+
+#Example is using script MongoSpark.py
+#Version depends on what the user is currently running. 
+spark-submit --packages org.mongodb.spark:mongo-spark-connector_2.11:2.0.0 MongoSpark.py
+#==========================================================
+
+
+#==========================================================
+#For drillbit I used the following command to connect. 
+bin/drillbit.sh start -Ddrill.exec.http.port=8765
+#==========================================================
+
+
+#==========================================================
+#Installing Phoenix in /usr/hdp/current/
+yum install Phoenix
+
+#Running the cli.
+Make sure the correct version of python is being ran.
+scl enable python27 bash
+/usr/hdp/current/phoenix-client/bin/sqlline.py
+
+#Command to view tables in phoenix
+!tables
+#HBase service needs to be running before Phoneix will run. 
+#==========================================================
+
+#==========================================================
+# Installing Presto
+wget https://repo1.maven.org/maven2/com/facebook/presto/presto-server/0.220/presto-server-0.220.tar.gz
+
+#Extract
+tar -xvf presto-server-0.220.tar
+
+#Download config files and extract.
+wget http://media.sundog-soft.com/hadoop/presto-hdp-config.tgz
+tar -xvf presto-hdp-config.tgz 
+
+#Download presto CLI.
+https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/0.220/presto-cli-0.220-executable.jar
+
+#Rename jar file and make into an exectuable. 
+mv presto-cli-0.220-executable.jar presto
+chmod +x presto 
+
+#Start server
+#Make sure you are in the presto root folder and have the appropriate permissions. 
+bin/launcher start
+
+#Connect to server specified in config file. 
+bin/presto --server 127.0.0.1:8090
+
+
+#Connecting to different databases.
+presto-server-0.220/bin/presto --server 127.0.0.1:8090 --catalog hive,cassandra
+#==========================================================
+
+
+#==========================================================
+#Start Kafka server in Ambari
+
+#Create Kafka topic
+cd /usr/hdp/current/kafka-broker/bin
+./kafka-topics.sh --create --zookeeper sandbox.hortonworks.com:2181 --replication-factor 1 --partitions 1 --topic mytopic
+
+#Validate that topic was created
+./kafka-topics.sh --list --zookeeper sandbox.hortonworks.com:2181 
+
+#Publish sample data into created topic.
+./kafka-console-producer.sh --broker-list sandbox.hortonworks.com:6667 --topic mytopic
+
+#Opened up a terminal window and reconnected to virtual box to 
+#for consuming a kafka topic.
+#--from-beginning will read data in from the very beginning of the topic. If this is not included 
+#then only new messages will be seen. 
+cd /usr/hdp/current/kafka-broker/bin
+./kafka-console-consumer.sh --bootstrap-server sandbox.hortonworks.com:6667 --zookeeper sandbox.hortonworks.com:2181 --topic mytopic --from-beginning 
+#==========================================================
+
+
+#==========================================================
+#Setting up and running flume to listen on port 44444 for network traffic.
+#Downloaded the example.conf file from wget http://media.sundog-soft.com/hadoop/example.conf
+cd /usr/hdp/current/flume-server/
+bin/flume-ng agent --conf conf --conf-file /home/maria_dev/flume/example.conf --name a1 -Dflume.root.logger=INFO,console
+
+#Open up another session to the VM and run the following
+telnet localhoslt 44444
+#==========================================================
+
+#==========================================================
+#Setting up flume to listen to a directory for files
+#that get dropped into it. 
+#Get config file. 
+wget http://media.sundog-soft.com/hadoop/flumelogs.conf
+
+#Running flume agent using config file flumelogs.conf.
+bin/flume-ng agent --conf conf --conf-file /home/maria_dev/flume/flumelogs.conf --name a1 -Dflume.root.logger=INFO,console
+
+#Make directory in virtual env.
+mkdir /home/maria_dev/spool
+touch examp.txt /home/maria_dev/spool/examp.txt
+
+#The work COMPLETED should be appended to the file once flume
+#has consumed the file. 
+#==========================================================
+
+
+#==========================================================
+#Setup flume with spark streaming. 
+#Get conf file.
+wget http://media.sundog-soft.com/hadoop/sparkstreamingflume.conf
+
+#This process will be using the SparkFlume.py file in the spark
+#folder.
+#Make checkpoint directory.
+mkdir /home/maria_dev/checkpoint
+
+#Below is for the Horton Works VM
+#Run the needed version of python 
+scl enable python27 bash
+
+#Set version of spark. 
+export SPARK_MAJOR_VERSION=2
+
+#Kickoff spark job. 
+#Retrieve the spark streaming flume connector version. 
+spark-submit --packages org.apache.spark:spark-streaming-flume_2.11:2.0.0 SparkFlume.py
+
+#Start flume using file sparkstreamingflume.conf
+#When starting flume I always had to be running under the root account. 
+cd /usr/hdp/current/flume-server
+bin/flume-ng agent --conf conf --conf-file /home/maria_dev/flume/sparkstreamingflume.conf --name a1 
+
+#Downloaded a sample access log for testing. 
+wget http://media.sundog-soft.com/hadoop/access_log.txt
+
+#Copy file into the spool directory created for flume in an earlier course. 
+cp /home/maria_dev/access_log.txt spool/log22.txt
+
+#==========================================================
+
+
+#==========================================================
+#Running a storm job.
+#Start Storm serivice in Ambari
+cd /usr/hdp/current/storm-client/
+
+#Run storm and all dependencies
+ storm jar /usr/hdp/current/storm-client/contrib/storm-starter/storm-starter-topologies-*.jar org.apache.storm.starter.WordCountTopology wordcount
+
+
+#Some java starter docs in Horton Works VM
+#/usr/hdp/current/storm-client/contrib/storm-starter/src/jvm/org/apache/storm/starter/
+
+#==========================================================
+
+
+#==========================================================
+#Download Flink
+wget https://www-eu.apache.org/dist/flink/flink-1.6.4/flink-1.6.4-bin-hadoop27-scala_2.11.tgz
+
+#Extract files
+tar -xvf flink-1.6.4-bin-hadoop27-scala_2.11.tgz
+
+#Start cluster
+./bin/start-cluster.sh 
+
+#Start netcat to output entered data to specified port. 
+nc -l 9000
+
+#Kickoff example streaming job. 
+./bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+
+#Enter any text into the netcat terminal window. 
+#View text in flink log folder. 
+vi flink-maria_dev-taskexecutor-0-sandbox.hortonworks.com.out
+
+
+#Stop flink cluster. 
+./bin/stop-cluster.sh 
+#==========================================================
